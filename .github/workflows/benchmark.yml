@@ -41,8 +41,8 @@ jobs:
 
       - name: Install nerdctl
         run: |
-          VERSION="v1.7.7"  # Set the version you want to install
-          wget https://github.com/containerd/nerdctl/releases/download/$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
+          VERSION="1.7.7"  # Set the version you want to install
+          wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo systemctl enable --now containerd
 
