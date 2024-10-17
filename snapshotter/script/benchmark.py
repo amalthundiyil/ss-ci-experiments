@@ -9,31 +9,20 @@ import json
 import sys
 
 def run_benchmark(image, snapshotter, task):
-    print(f"\n=== Starting Benchmark ===")
-    print(f"Snapshotter: {snapshotter}")
-    print(f"Image: {image}")
-    print(f"Task: {task}")
-    
+    print(f"Running benchmark with snapshotter: {snapshotter}, image: {image}, task: {task}")
     benchmark_start = datetime.datetime.now()
-    print(f"Benchmark start time: {benchmark_start}")
-
     pull_start = datetime.datetime.now()
-    print(f"\nPulling image: {image} (Started at {pull_start})")
     subprocess.run(f"sudo nerdctl pull --snapshotter={snapshotter} {image}", shell=True)
     pull_end = datetime.datetime.now()
-    print(f"Image pull completed at: {pull_end}, Duration: {(pull_end - pull_start).total_seconds()} seconds")
-
     run_start = datetime.datetime.now()
-    print(f"\nRunning container task (Started at {run_start})")
-    result = subprocess.run(f"sudo nerdctl run --rm --snapshotter={snapshotter} {image} /bin/bash -c \"{task}\"",
-                            shell=True, capture_output=True, text=True)
+    result = subprocess.run(f"""sudo nerdctl run --rm  --snapshotter={snapshotter} {image} /bin/bash -c "\
+echo container_start: "'$(date -Ins)'"
+{task}
+echo container_end: "'$(date -Ins)'"
+""", shell=True, capture_output=True, text=True)
+    print(result)
     run_end = datetime.datetime.now()
-    print(f"Container run completed at: {run_end}")
-
-    print("asdf", result)
     output = result.stdout
-    print(f"\nTask output:\n{output}")
-
     container_start_match = re.search(r'container_start: ([\d\-T:\.\+]+)', output)
     container_end_match = re.search(r'container_end: ([\d\-T:\.\+]+)', output)
 
@@ -49,12 +38,6 @@ def run_benchmark(image, snapshotter, task):
     execution_time = (container_end - container_start).total_seconds()
     total_time = (benchmark_end - benchmark_start).total_seconds()
 
-    print(f"\n=== Benchmark Results ===")
-    print(f"Pull time: {pull_time} seconds")
-    print(f"Container creation time: {creation_time} seconds")
-    print(f"Task execution time: {execution_time} seconds")
-    print(f"Total benchmark time: {total_time} seconds\n")
-
     return {
         "pull_time": pull_time,
         "creation_time": creation_time,
@@ -63,7 +46,6 @@ def run_benchmark(image, snapshotter, task):
     }
 
 def perf_regression(old_results, new_results, threshold=0.05):
-    print(f"\n=== Performance Comparison ===")
     for key in old_results:
         old_time = old_results[key]
         new_time = new_results[key]
@@ -80,18 +62,14 @@ if __name__ == "__main__":
     snapshotter = "cvmfs-snapshotter"
 
     for image in images:
-        print(f"\n=== Benchmarking Image: {image} ===")
         new_results = run_benchmark(image, snapshotter, task)
-        print(f"\nNew benchmark results: {new_results}")
+        print(new_results)
 
     if len(sys.argv) >= 2:
-        print(f"\nLoading old results from {sys.argv[1]} for comparison...")
         with open(sys.argv[1], 'r') as f:
             old_results = json.load(f)
         if perf_regression(old_results, new_results):
             sys.exit(1)
 
-    print(f"\nSaving new benchmark results to 'new_benchmark_results.json'")
-    with open('new_benchmark_results.json', 'w') as f:
+    with open('ew_benchmark_results.json', 'w') as f:
         json.dump(new_results, f, indent=4)
-    print("Results saved.")
