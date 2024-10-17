@@ -72,5 +72,5 @@ if __name__ == "__main__":
         if perf_regression(old_results, new_results):
             sys.exit(1)
 
-    with open('ew_benchmark_results.json', 'w') as f:
+    with open('new_benchmark_results.json', 'w') as f:
         json.dump(new_results, f, indent=4)
