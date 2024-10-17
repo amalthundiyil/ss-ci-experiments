@@ -21,10 +21,30 @@ jobs:
 
       - name: Install nerdctl
         run: |
-          VERSION="v1.7.7"  # Set the version you want to install
-          curl -LO https://github.com/containerd/nerdctl/releases/download/$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
+          VERSION="1.7.7"  # Set the version you want to install
+          curl -LO https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-$VERSION-linux-amd64.tar.gz
           tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo systemctl enable --now containerd
+      
+      - name: Configure cvmfs-snapshotter
+          cd snapshotter
+          make
+          cp out/cvmfs_snapshotter /usr/local/bin/cvmfs_snapshotter
+          cp config/etc/systemd/system/cvmfs-snapshotter.service /etc/systemd/system/
+          mkdir -p /etc/containerd-cvmfs-grpc && touch /etc/containerd-cvmfs-grpc/config.toml
+          sudo tee /etc/containerd/config.toml > /dev/null <<EOL
+          version = 2
+
+          [plugins."io.containerd.grpc.v1.cri".containerd]
+              snapshotter = "cvmfs-snapshotter"
+              disable_snapshot_annotations = false
+
+          [proxy_plugins]
+              [proxy_plugins.cvmfs-snapshotter]
+                  type = "snapshot"
+                  address = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+          EOL
+          
 
       - name: Run benchmark
         run: python3 snapshotter/benchmark.py
