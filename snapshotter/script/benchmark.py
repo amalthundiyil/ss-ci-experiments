@@ -21,7 +21,7 @@ echo container_start: "'$(date -Ins)'"
 echo container_end: "'$(date -Ins)'"
 "
 """, shell=True, capture_output=True, text=True)
-    print(result)
+
     run_end = datetime.datetime.now()
     output = result.stdout
     container_start_match = re.search(r'container_start: ([\d\-T:\.\+]+)', output)

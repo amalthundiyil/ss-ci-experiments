@@ -21,7 +21,7 @@ jobs:
 
       - name: Install nerdctl
         run: |
-          VERSION="1.7.7"  # Set the version you want to install
+          VERSION="1.7.7" 
           wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo systemctl enable --now containerd
@@ -47,6 +47,13 @@ jobs:
           EOL
           sudo systemctl start cvmfs-snapshotter
           sudo systemctl restart containerd
+          CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+          if [ -S "$CVMFS_SOCK" ]; then
+              echo "$CVMFS_SOCK exists."
+          else
+              echo "$CVMFS_SOCK does not exist."
+              exit 1
+          fi
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
