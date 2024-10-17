@@ -47,4 +47,4 @@ jobs:
           sudo systemctl enable --now containerd
 
       - name: Run benchmark
-        run: python3 snapshotter/benchmark.py
+        run: python3 snapshotter/script/benchmark.py
