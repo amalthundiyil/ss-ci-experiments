@@ -46,7 +46,7 @@ jobs:
                   address = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
           EOL
           sudo systemctl start cvmfs-snapshotter
-          sudo sysytemctl restart containerd
+          sudo systemctl restart containerd
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
