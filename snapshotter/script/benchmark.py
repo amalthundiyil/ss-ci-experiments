@@ -55,6 +55,7 @@ def perf_regression(old_results, new_results, threshold=0.05):
 if __name__ == "__main__":
     images = ["rootproject/root:6.32.02-ubuntu24.04"]
     task = "python3 -c 'import ROOT'"
+    snapshotter = "cvmfs-snapshotter"
 
     for image in images:
         new_results = run_benchmark(image, snapshotter, task)
