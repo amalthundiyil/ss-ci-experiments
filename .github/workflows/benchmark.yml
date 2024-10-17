@@ -1,0 +1,31 @@
+name: Benchmark
+
+on:
+  push:
+      branches: [devel]
+  pull_request:
+
+jobs:
+  snapshotter:
+    name: "Snapshotter"
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' 
+
+      - name: Install nerdctl
+        run: |
+          VERSION="v1.7.7"  # Set the version you want to install
+          curl -LO https://github.com/containerd/nerdctl/releases/download/$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
+          tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
+          sudo systemctl enable --now containerd
+
+      - name: Run benchmark
+        run: python3 snapshotter/benchmark.py
+
