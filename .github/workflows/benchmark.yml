@@ -24,7 +24,7 @@ jobs:
           cd snapshotter
           make
           sudo cp out/cvmfs_snapshotter /usr/local/bin/cvmfs_snapshotter
-          sudo cp config/etc/systemd/system/cvmfs-snapshotter.service /etc/systemd/system/
+          sudo cp script/config/etc/systemd/system/cvmfs-snapshotter.service /etc/systemd/system/
           sudo mkdir -p /etc/containerd-cvmfs-grpc && sudo touch /etc/containerd-cvmfs-grpc/config.toml
           sudo tee /etc/containerd/config.toml > /dev/null <<EOL
           version = 2
