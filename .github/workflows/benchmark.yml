@@ -19,7 +19,14 @@ jobs:
         with:
           python-version: '3.12' 
 
-      - name: Configure cvmfs-snapshotter
+      - name: Install nerdctl
+        run: |
+          VERSION="1.7.7"  # Set the version you want to install
+          wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
+          sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
+          sudo systemctl enable --now containerd
+
+      - name: Install cvmfs-snapshotter
         run: |
           cd snapshotter
           make
@@ -38,13 +45,8 @@ jobs:
                   type = "snapshot"
                   address = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
           EOL
-
-      - name: Install nerdctl
-        run: |
-          VERSION="1.7.7"  # Set the version you want to install
-          wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
-          sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
-          sudo systemctl enable --now containerd
+          sudo systemctl start cvmfs-snapshotter
+          sudo sysytemctl restart containerd
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
