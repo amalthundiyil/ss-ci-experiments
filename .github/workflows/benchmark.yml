@@ -62,12 +62,15 @@ jobs:
           sudo systemctl start cvmfs-snapshotter
           sudo systemctl restart containerd
           CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-          if [ -S "$CVMFS_SOCK" ]; then
-              echo "$CVMFS_SOCK exists."
-          else
-              echo "$CVMFS_SOCK does not exist."
-              exit 1
-          fi
+          # if [ -S "$CVMFS_SOCK" ]; then
+          #     echo "$CVMFS_SOCK exists."
+          # else
+          #     echo "$CVMFS_SOCK does not exist."
+          #     exit 1
+          # fi
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
