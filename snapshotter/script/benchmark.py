@@ -30,6 +30,7 @@ def run_benchmark(image, snapshotter, task):
     run_end = datetime.datetime.now()
     print(f"Container run completed at: {run_end}")
 
+    print("asdf", result)
     output = result.stdout
     print(f"\nTask output:\n{output}")
 
