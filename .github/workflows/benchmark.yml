@@ -25,6 +25,20 @@ jobs:
           wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo systemctl enable --now containerd
+      
+      - name: Install cvmfs
+        run: |
+          sudo apt install lsb-release -y
+          if [ ! -f /tmp/cvmfs-release-latest_all.deb ]; then
+              wget https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb -O /tmp/cvmfs-release-latest_all.deb
+          fi
+          sudo dpkg -i /tmp/cvmfs-release-latest_all.deb
+          sudo apt update
+          sudo apt install -y cvmfs
+          sudo cvmfs_config setup
+          sudo sh -c "echo "CVMFS_HTTP_PROXY=DIRECT" > /etc/cvmfs/default.local"
+          sudo sh -c "echo "CVMFS_DEBUGLOG=/tmp/cvmfs.log" >> /etc/cvmfs/default.local"
+          sudo cvmfs_config reload
 
       - name: Install cvmfs-snapshotter
         run: |
@@ -48,6 +62,12 @@ jobs:
           sudo systemctl start cvmfs-snapshotter
           sudo systemctl restart containerd
           CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+          if [ -S "$CVMFS_SOCK" ]; then
+              echo "$CVMFS_SOCK exists."
+          else
+              echo "$CVMFS_SOCK does not exist."
+              exit 1
+          fi
 
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
