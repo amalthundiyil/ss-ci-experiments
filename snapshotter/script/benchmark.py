@@ -67,4 +67,30 @@ def perf_regression(old_results, new_results, threshold=0.05):
         old_time = old_results[key]
         new_time = new_results[key]
         percentage_diff = (new_time - old_time) / old_time
-        print(f"{key}: old={old
+        print(f"{key}: old={old_time}, new={new_time}, diff={percentage_diff*100:.2f}%")
+        if percentage_diff > threshold:
+            print(f"Performance regression detected in {key}")
+            return True
+    return False
+
+if __name__ == "__main__":
+    images = ["rootproject/root:6.32.02-ubuntu24.04"]
+    task = "python3 -c 'import ROOT'"
+    snapshotter = "cvmfs-snapshotter"
+
+    for image in images:
+        print(f"\n=== Benchmarking Image: {image} ===")
+        new_results = run_benchmark(image, snapshotter, task)
+        print(f"\nNew benchmark results: {new_results}")
+
+    if len(sys.argv) >= 2:
+        print(f"\nLoading old results from {sys.argv[1]} for comparison...")
+        with open(sys.argv[1], 'r') as f:
+            old_results = json.load(f)
+        if perf_regression(old_results, new_results):
+            sys.exit(1)
+
+    print(f"\nSaving new benchmark results to 'new_benchmark_results.json'")
+    with open('new_benchmark_results.json', 'w') as f:
+        json.dump(new_results, f, indent=4)
+    print("Results saved.")
