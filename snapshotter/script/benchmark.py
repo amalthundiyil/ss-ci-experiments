@@ -19,6 +19,7 @@ def run_benchmark(image, snapshotter, task):
 echo container_start: "'$(date -Ins)'"
 {task}
 echo container_end: "'$(date -Ins)'"
+"
 """, shell=True, capture_output=True, text=True)
     print(result)
     run_end = datetime.datetime.now()
