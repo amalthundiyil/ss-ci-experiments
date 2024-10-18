@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-# Usage: python benchmark.py old_results.json
-
 import subprocess
 import datetime
 import re
 import json
 import sys
+import os
+import shutil
+import pprint
 
 def run_benchmark(image, snapshotter, task):
     print(f"Running benchmark with snapshotter: {snapshotter}, image: {image}, task: {task}")
@@ -40,6 +41,9 @@ echo container_end: "'$(date -Ins)'"
     total_time = (benchmark_end - benchmark_start).total_seconds()
 
     return {
+        "image": image,
+        "snapshotter": snapshotter,
+        "task": task,
         "pull_time": pull_time,
         "creation_time": creation_time,
         "execution_time": execution_time,
@@ -57,20 +61,68 @@ def perf_regression(old_results, new_results, threshold=0.05):
             return True
     return False
 
+def cleanup():
+    # stop services
+    subprocess.run(['systemctl', 'stop', 'containerd'], check=True)
+    subprocess.run(['systemctl', 'stop', 'cvmfs-snapshotter'], check=True)
+    subprocess.run(['systemctl', 'stop', 'autofs'], check=True)
+
+    # unmount repo
+    subprocess.run(['umount', "/cvmfs/unpacked.cern.ch"], check=True)
+
+    # clear cache
+    def clear_cache(path):
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.makedirs(path, mode=0o755, exist_ok=True)
+
+    clear_cache("/var/lib/containerd")
+    clear_cache("/var/lib/containerd-cvmfs-grpc")
+    subprocess.run("cvmfs_config reload -c", shell=True, capture_output=True, text=True)
+
+    # start services
+    subprocess.run(['systemctl', 'start', 'containerd'], check=True)
+    subprocess.run(['systemctl', 'start', 'cvmfs-snapshotter'], check=True)
+    subprocess.run(['systemctl', 'start', 'autofs'], check=True)
+
+    # mount and check
+    subprocess.run(['mount', '-t', 'cvmfs', "unpacked.cern.ch", "/cvmfs/unpacked.cern.ch"], check=True)
+    subprocess.run("cvmfs_config probe", shell=True, capture_output=True, text=True)
+    cvmfs_sock_exists = os.path.exists("/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock")
+    if not cvmfs_sock_exists:
+        raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
+
 if __name__ == "__main__":
     images = ["rootproject/root:6.32.02-ubuntu24.04"]
-    task = "python3 -c 'import ROOT'"
+    data = [ 
+        {
+            "image": "rootproject/root:6.32.02-ubuntu24.04",
+            "tasks": [
+                "/bin/bash", 
+                "python -c 'print(\"# Hello World\")'", 
+                "python -c 'import ROOT; print(\"# import root complete\")'", 
+                "python /opt/root/tutorials/pyroot/fillrandom.py"
+            ]
+        }
+    ]
+
     snapshotter = "cvmfs-snapshotter"
 
-    for image in images:
-        new_results = run_benchmark(image, snapshotter, task)
-        print(new_results)
+    results = []
 
-    if len(sys.argv) >= 2:
-        with open(sys.argv[1], 'r') as f:
-            old_results = json.load(f)
-        if perf_regression(old_results, new_results):
-            sys.exit(1)
+    for entry in data:
+        image, tasks = entry['image'], entry['tasks']
+        for task in tasks:
+            results.append(run_benchmark(image, snapshotter, task))
+            cleanup()
+    
+    pprint.pprint(results)
 
-    with open('new_benchmark_results.json', 'w') as f:
-        json.dump(new_results, f, indent=4)
+    # if len(sys.argv) >= 2:
+    #     with open(sys.argv[1], 'r') as f:
+    #         old_results = json.load(f)
+    #     if perf_regression(old_results, new_results):
+    #         sys.exit(1)
+
+    with open('benchmark_results.json', 'w') as f:
+        json.dump(results, f, indent=4)
