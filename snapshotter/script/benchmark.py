@@ -63,12 +63,12 @@ def perf_regression(old_results, new_results, threshold=0.05):
 
 def cleanup():
     # stop services
-    subprocess.run(['systemctl', 'stop', 'containerd'], check=True)
-    subprocess.run(['systemctl', 'stop', 'cvmfs-snapshotter'], check=True)
-    subprocess.run(['systemctl', 'stop', 'autofs'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'stop', 'containerd'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'stop', 'cvmfs-snapshotter'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'stop', 'autofs'], check=True)
 
     # unmount repo
-    subprocess.run(['umount', "/cvmfs/unpacked.cern.ch"], check=True)
+    subprocess.run(['sudo', 'umount', "/cvmfs/unpacked.cern.ch"], check=True)
 
     # clear cache
     def clear_cache(path):
@@ -78,16 +78,16 @@ def cleanup():
 
     clear_cache("/var/lib/containerd")
     clear_cache("/var/lib/containerd-cvmfs-grpc")
-    subprocess.run("cvmfs_config reload -c", shell=True, capture_output=True, text=True)
+    subprocess.run("sudo cvmfs_config reload -c", shell=True, capture_output=True, text=True)
 
     # start services
-    subprocess.run(['systemctl', 'start', 'containerd'], check=True)
-    subprocess.run(['systemctl', 'start', 'cvmfs-snapshotter'], check=True)
-    subprocess.run(['systemctl', 'start', 'autofs'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'start', 'containerd'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'start', 'cvmfs-snapshotter'], check=True)
+    subprocess.run(['sudo', 'systemctl', 'start', 'autofs'], check=True)
 
     # mount and check
-    subprocess.run(['mount', '-t', 'cvmfs', "unpacked.cern.ch", "/cvmfs/unpacked.cern.ch"], check=True)
-    subprocess.run("cvmfs_config probe", shell=True, capture_output=True, text=True)
+    subprocess.run(['sudo', 'mount', '-t', 'cvmfs', "unpacked.cern.ch", "/cvmfs/unpacked.cern.ch"], check=True)
+    subprocess.run("sudo cvmfs_config probe", shell=True, capture_output=True, text=True)
     cvmfs_sock_exists = os.path.exists("/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock")
     if not cvmfs_sock_exists:
         raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
