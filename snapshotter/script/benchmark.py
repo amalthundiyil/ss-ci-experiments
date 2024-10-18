@@ -61,14 +61,22 @@ def perf_regression(old_results, new_results, threshold=0.05):
             return True
     return False
 
+
+
 def cleanup():
     # stop services
-    subprocess.run(['sudo', 'systemctl', 'stop', 'containerd'], check=True)
-    subprocess.run(['sudo', 'systemctl', 'stop', 'cvmfs-snapshotter'], check=True)
-    subprocess.run(['sudo', 'systemctl', 'stop', 'autofs'], check=True)
+    services = ['containerd', 'cvmfs-snapshotter', 'autofs']
+    for service in services:
+        try:
+            subprocess.run(['sudo', 'systemctl', 'stop', service], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error stopping {service}: {e.stderr}")
 
-    # unmount repo
-    subprocess.run(['sudo', 'umount', "/cvmfs/unpacked.cern.ch"], check=True)
+    # unmount
+    try:
+        subprocess.run(['sudo', 'umount', "/cvmfs/unpacked.cern.ch"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error unmounting /cvmfs/unpacked.cern.ch: {e.stderr}")
 
     # clear cache
     def clear_cache(path):
@@ -78,16 +86,31 @@ def cleanup():
 
     clear_cache("/var/lib/containerd")
     clear_cache("/var/lib/containerd-cvmfs-grpc")
-    subprocess.run("sudo cvmfs_config reload -c", shell=True, capture_output=True, text=True)
+
+    try:
+        subprocess.run("sudo cvmfs_config reload -c", shell=True, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error reloading cvmfs_config: {e.stderr}")
 
     # start services
-    subprocess.run(['sudo', 'systemctl', 'start', 'containerd'], check=True)
-    subprocess.run(['sudo', 'systemctl', 'start', 'cvmfs-snapshotter'], check=True)
-    subprocess.run(['sudo', 'systemctl', 'start', 'autofs'], check=True)
+    services = ['containerd', 'cvmfs-snapshotter', 'autofs']
+    for service in services:
+        try:
+            subprocess.run(['sudo', 'systemctl', 'start', service], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error starting {service}: {e.stderr}")
 
     # mount and check
-    subprocess.run(['sudo', 'mount', '-t', 'cvmfs', "unpacked.cern.ch", "/cvmfs/unpacked.cern.ch"], check=True)
-    subprocess.run("sudo cvmfs_config probe", shell=True, capture_output=True, text=True)
+    try:
+        subprocess.run(['sudo', 'mount', '-t', 'cvmfs', "unpacked.cern.ch", "/cvmfs/unpacked.cern.ch"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error mounting unpacked.cern.ch: {e.stderr}")
+
+    try:
+        subprocess.run("sudo cvmfs_config probe", shell=True, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error probing cvmfs_config: {e.stderr}")
+
     cvmfs_sock_exists = os.path.exists("/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock")
     if not cvmfs_sock_exists:
         raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
