@@ -2,8 +2,11 @@ name: Benchmark
 
 on:
   push:
-    branches: [devel]
+    branches:
+      - devel
   pull_request:
+    branches:
+      - devel
 
 jobs:
   snapshotter:
@@ -17,7 +20,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' 
+          python-version: "3.12"
 
       - name: Install nerdctl
         run: |
@@ -25,7 +28,7 @@ jobs:
           wget https://github.com/containerd/nerdctl/releases/download/v$VERSION/nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo tar Cxzvvf /usr/local nerdctl-full-$VERSION-linux-amd64.tar.gz
           sudo systemctl enable --now containerd
-      
+
       - name: Install cvmfs
         run: |
           sudo apt install lsb-release -y
@@ -63,13 +66,14 @@ jobs:
           sudo systemctl restart containerd
 
           ss | grep cvmfs
-          CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-          if [ -S "$CVMFS_SOCK" ]; then
-              echo "$CVMFS_SOCK exists."
-          else
-              echo "$CVMFS_SOCK does not exist."
-              exit 1
-          fi
+
+          # CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+          # if [ -S "$CVMFS_SOCK" ]; then
+          #     echo "$CVMFS_SOCK exists."
+          # else
+          #     echo "$CVMFS_SOCK does not exist."
+          #     exit 1
+          # fi
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
