@@ -66,8 +66,8 @@ jobs:
           sudo systemctl restart containerd
 
           sudo systemctl stop autofs
-          mkdir -p /cvmfs/unpacked.cern.ch
-          mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch
+          sudo mkdir -p /cvmfs/unpacked.cern.ch
+          sudo mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch
 
           CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
           if [ -S "$CVMFS_SOCK" ]; then
