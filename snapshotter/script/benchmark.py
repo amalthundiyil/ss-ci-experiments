@@ -39,7 +39,7 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     run_start = time.time_ns()
     result = subprocess.run(
-        f"""sudo nerdctl run --rm --snapshotter={snapshotter} {image} /bin/bash -c "\
+        f"""sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
         echo container_start: '$(date +%s%N)'; \
         {task}; \
         echo container_end: '$(date +%s%N)'"
