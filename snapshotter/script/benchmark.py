@@ -92,6 +92,15 @@ def perf_regression(old_results, new_results, threshold=0.05):
 
 def cleanup(image):
     result = subprocess.run(
+        ["sudo", "nerdctl", "container", "prune", "-f"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.stderr:
+        logging.error(f"Error purning containers: {result.stderr}")
+
+    result = subprocess.run(
         ["sudo", "nerdctl", "rmi", image],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
