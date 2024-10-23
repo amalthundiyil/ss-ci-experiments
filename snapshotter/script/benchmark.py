@@ -38,7 +38,7 @@ def run_benchmark(iteration, image, snapshotter, task):
         logging.error(f"Pull stderr: {pull_result.stderr}")
 
 
-    run_start = time.time.ns()
+    run_start = time.time_ns()
     result = subprocess.run(
         f"""sudo nerdctl run --rm --snapshotter={snapshotter} {image} /bin/bash -c "\
         echo container_start: '$(date +%s%N)'; \
