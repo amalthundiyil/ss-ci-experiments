@@ -81,4 +81,4 @@ jobs:
       #   uses: mxschmitt/action-tmate@v3
 
       - name: Run benchmark
-        run: bash snapshotter/script/clear.sh && bash snapshotter/script/run.sh
+        run: bash snapshotter/script/clear.sh && bash snapshotter/script/run.sh && bash snapshotter/script/clear.sh
