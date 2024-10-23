@@ -31,7 +31,6 @@ def run_benchmark(iteration, image, snapshotter, task):
         text=True,
     )
     pull_end = time.time_ns()
-    print("pull_end - pull_start = ", (pull_end - pull_start) / 1_000_000_000)
 
     if logging.getLogger().level == logging.ERROR:
         logging.debug(f"Pull stdout: {pull_result.stdout}")
@@ -50,8 +49,7 @@ def run_benchmark(iteration, image, snapshotter, task):
         stderr=subprocess.PIPE,
         text=True,
     )
-    benchmark_end = time.time_ns()
-    print("benchmark_end - run_start = ", (benchmark_end - run_start) / 1_000_000_000)
+    run_end = time.time_ns()
 
     if logging.getLogger().level == logging.DEBUG:
         logging.error(f"Error running task {task} on {image}: {result.stderr}") # always logged in github actions even if not an error
@@ -68,11 +66,12 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     container_start = int(container_start_match.group(1))
     container_end = int(container_end_match.group(1))
+    print("run_end - containerd_end", (run_end - container_end) / 1_000_000_000)
 
     pull_time = (pull_end - pull_start) / 1_000_000_000
     creation_time = (container_start - run_start) / 1_000_000_000
     execution_time = (container_end - container_start) / 1_000_000_000
-    total_time = (benchmark_end - benchmark_start) / 1_000_000_000
+    total_time = (run_end - benchmark_start) / 1_000_000_000
 
     return pull_time, creation_time, execution_time, total_time
 
