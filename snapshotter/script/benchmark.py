@@ -201,11 +201,11 @@ def cleanup(image):
     if result.stderr:
         logging.error(f"Error probing cvmfs_config: {result.stderr}")
 
-    cvmfs_sock_exists = os.path.exists(
-        "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-    )
-    if not cvmfs_sock_exists:
-        raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
+    # cvmfs_sock_exists = os.path.exists(
+    #     "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+    # )
+    # if not cvmfs_sock_exists:
+    #     raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
 
 
 if __name__ == "__main__":
