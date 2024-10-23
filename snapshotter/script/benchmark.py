@@ -200,11 +200,13 @@ def cleanup(image):
     if result.stderr:
         logging.error(f"Error probing cvmfs_config: {result.stderr}")
 
-    # cvmfs_sock_exists = os.path.exists(
-    #     "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-    # )
-    # if not cvmfs_sock_exists:
-    #     raise AssertionError("containerd-cvmfs-grpc.sock does not exist.")
+    
+    try:
+        sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+        subprocess.run(["sudo", "test", "-S", sock_path], check=True)
+        logging.info(f"{sock_path} exists.")
+    except subprocess.CalledProcessError:
+        raise AssertionError(f"{sock_path} does not exist.")
 
 
 if __name__ == "__main__":
