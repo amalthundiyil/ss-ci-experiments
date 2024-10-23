@@ -81,4 +81,4 @@ jobs:
       #   uses: mxschmitt/action-tmate@v3
 
       - name: Run benchmark
-        run: python3 snapshotter/script/benchmark.py
+        run: bash clear.sh && bash run.sh

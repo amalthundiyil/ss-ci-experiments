@@ -21,60 +21,59 @@ def run_benchmark(iteration, image, snapshotter, task):
         f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}"
     )
 
-    benchmark_start = time.time_ns()
-    pull_start = time.time_ns()
-    pull_result = subprocess.run(
-        f"sudo nerdctl pull --snapshotter={snapshotter} {image}",
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    pull_end = time.time_ns()
+    # TODO: modify to use pull, create and run, and have all the times in python
 
-    if logging.getLogger().level == logging.ERROR:
-        logging.debug(f"Pull stdout: {pull_result.stdout}")
-        logging.error(f"Pull stderr: {pull_result.stderr}")
-
-
-    run_start = time.time_ns()
     result = subprocess.run(
-        f"""sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
-        echo container_start: '$(date +%s%N)'; \
-        {task}; \
-        echo container_end: '$(date +%s%N)'"
+        f"""
+            echo benchmark_start: $(date +%s%N); \
+            echo pull_start: $(date +%s%N); \
+            sudo nerdctl pull --snapshotter={snapshotter} {image}; \
+            echo pull_end: $(date +%s%N); \
+            echo run_start: $(date +%s%N); \
+            sudo nerdctl --debug-full run --snapshotter={snapshotter} {image} /bin/bash -c "\
+            echo container_start: '$(date +%s%N)'; \
+            {task}; \
+            echo container_end: '$(date +%s%N)'"; \
+            echo run_end: $(date +%s%N)
         """,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
-    run_end = time.time_ns()
 
-    if logging.getLogger().level == logging.DEBUG:
-        logging.error(f"Error running task {task} on {image}: {result.stderr}") # always logged in github actions even if not an error
+    if logging.getLogger().level == logging.ERROR:
         logging.debug(f"Run stdout: {result.stdout}")
+        logging.error(f"Run stderr: {result.stderr}")
 
     output = result.stdout
+    print(output)
+    benchmark_start_match = re.search(r"benchmark_start: ([\d]+)", output)
+    pull_start_match = re.search(r"pull_start: ([\d]+)", output)
+    pull_end_match = re.search(r"pull_end: ([\d]+)", output)
     container_start_match = re.search(r"container_start: ([\d]+)", output)
     container_end_match = re.search(r"container_end: ([\d]+)", output)
+    run_end_match = re.search(r"run_end: ([\d]+)", output)
 
-    if not container_start_match or not container_end_match:
+    if not all([benchmark_start_match, pull_start_match, pull_end_match,
+                container_start_match, container_end_match, run_end_match]):
         sys.exit(
-            "Error: container_start or container_end timestamp not found in the output."
+            "Error: One or more timestamps not found in the output."
         )
 
+    benchmark_start = int(benchmark_start_match.group(1))
+    pull_start = int(pull_start_match.group(1))
+    pull_end = int(pull_end_match.group(1))
     container_start = int(container_start_match.group(1))
     container_end = int(container_end_match.group(1))
-    print("run_end - containerd_end", (run_end - container_end) / 1_000_000_000)
+    run_end = int(run_end_match.group(1))
 
-    pull_time = (pull_end - pull_start) / 1_000_000_000
-    creation_time = (container_start - run_start) / 1_000_000_000
-    execution_time = (container_end - container_start) / 1_000_000_000
-    total_time = (run_end - benchmark_start) / 1_000_000_000
+    pull_time = (pull_end - pull_start) / 1e9
+    creation_time = (container_start - pull_end) / 1e9
+    execution_time = (container_end - container_start) / 1e9
+    total_time = (run_end - benchmark_start) / 1e9
 
     return pull_time, creation_time, execution_time, total_time
-
 
 def perf_regression(old_results, new_results, threshold=0.05):
     for key in old_results:
@@ -98,7 +97,7 @@ def cleanup(image):
         text=True,
     )
     if result.stderr:
-        logging.error(f"Error purning containers: {result.stderr}")
+        logging.error(f"Error pruning containers: {result.stderr}")
 
     result = subprocess.run(
         ["sudo", "nerdctl", "rmi", image],
@@ -223,10 +222,10 @@ if __name__ == "__main__":
         {
             "image": "docker.io/rootproject/root:6.32.02-ubuntu24.04",
             "tasks": [
-                "/bin/bash",
-                r"python -c 'print(\"done\")'",
+                # "/bin/bash",
+                # r"python -c 'print(\"done\")'",
                 r"python -c 'import ROOT; print(\"done\")'",
-                "python /opt/root/tutorials/pyroot/fillrandom.py",
+                # "python /opt/root/tutorials/pyroot/fillrandom.py",
             ],
         }
     ]
@@ -234,7 +233,8 @@ if __name__ == "__main__":
     snapshotter = "cvmfs-snapshotter"
     results = []
 
-    num_runs = 5  # Number of times to run each task
+    num_runs = 2  # Number of times to run each task
+    # num_runs = 5  # Number of times to run each task
 
     for entry in data:
         image, tasks = entry["image"], entry["tasks"]
