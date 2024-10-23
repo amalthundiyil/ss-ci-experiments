@@ -23,7 +23,6 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     benchmark_start = time.time_ns()
     pull_start = time.time_ns()
-
     pull_result = subprocess.run(
         f"sudo nerdctl pull --snapshotter={snapshotter} {image}",
         shell=True,
@@ -31,13 +30,15 @@ def run_benchmark(iteration, image, snapshotter, task):
         stderr=subprocess.PIPE,
         text=True,
     )
+    pull_end = time.time_ns()
+    print("pull_end - pull_start = ", (pull_end - pull_start) / 1_000_000_000)
+
     if logging.getLogger().level == logging.ERROR:
         logging.debug(f"Pull stdout: {pull_result.stdout}")
         logging.error(f"Pull stderr: {pull_result.stderr}")
 
-    pull_end = time.time_ns()
-    run_start = time.time_ns()
 
+    run_start = time.time.ns()
     result = subprocess.run(
         f"""sudo nerdctl run --rm --snapshotter={snapshotter} {image} /bin/bash -c "\
         echo container_start: '$(date +%s%N)'; \
@@ -49,13 +50,14 @@ def run_benchmark(iteration, image, snapshotter, task):
         stderr=subprocess.PIPE,
         text=True,
     )
+    benchmark_end = time.time_ns()
+    print("benchmark_end - run_start = ", (benchmark_end - run_start) / 1_000_000_000)
 
     if logging.getLogger().level == logging.DEBUG:
         logging.error(f"Error running task {task} on {image}: {result.stderr}") # always logged in github actions even if not an error
         logging.debug(f"Run stdout: {result.stdout}")
 
     output = result.stdout
-    benchmark_end = time.time_ns()
     container_start_match = re.search(r"container_start: ([\d]+)", output)
     container_end_match = re.search(r"container_end: ([\d]+)", output)
 
@@ -204,7 +206,6 @@ def cleanup(image):
     try:
         sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
         subprocess.run(["sudo", "test", "-S", sock_path], check=True)
-        logging.info(f"{sock_path} exists.")
     except subprocess.CalledProcessError:
         raise AssertionError(f"{sock_path} does not exist.")
 
