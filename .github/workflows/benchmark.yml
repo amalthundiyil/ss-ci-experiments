@@ -74,11 +74,11 @@ jobs:
               echo "$CVMFS_SOCK exists."
           else
               echo "$CVMFS_SOCK does not exist."
-              exit 1
+              # exit 1
           fi
 
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
 
       - name: Run benchmark
         run: python3 snapshotter/script/benchmark.py
