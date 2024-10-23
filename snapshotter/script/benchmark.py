@@ -50,12 +50,12 @@ def run_benchmark(iteration, image, snapshotter, task):
         text=True,
     )
 
-    if result.stderr:
-        logging.error(f"Error running task {task} on {image}: {result.stderr}")
     if logging.getLogger().level == logging.DEBUG:
+        logging.error(f"Error running task {task} on {image}: {result.stderr}") # always logged in github actions even if not an error
         logging.debug(f"Run stdout: {result.stdout}")
 
     output = result.stdout
+    benchmark_end = time.time_ns()
     container_start_match = re.search(r"container_start: ([\d]+)", output)
     container_end_match = re.search(r"container_end: ([\d]+)", output)
 
@@ -66,7 +66,6 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     container_start = int(container_start_match.group(1))
     container_end = int(container_end_match.group(1))
-    benchmark_end = time.time_ns()
 
     pull_time = (pull_end - pull_start) / 1_000_000_000
     creation_time = (container_start - run_start) / 1_000_000_000
