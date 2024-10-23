@@ -86,9 +86,8 @@ if [[ $? -ne 0 ]]; then
     log_error "Error probing cvmfs_config"
 fi
 
-# Check if the CVMFS gRPC socket exists
 sock_path="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-if [[ ! -S "$sock_path" ]]; then
+if sudo [ ! -S "$sock_path" ]; then
     log_error "$sock_path does not exist."
     exit 1
 fi
