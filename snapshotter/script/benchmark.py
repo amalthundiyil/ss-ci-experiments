@@ -26,9 +26,9 @@ def run_benchmark(iteration, image, snapshotter, task):
             echo pull_end: $(date +%s%N); \
             echo run_start: $(date +%s%N); \
             sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
-            echo container_start: $(date +%s%N); \
+            echo container_start: \$(date +%s%N); \
             {task}; \
-            echo container_end: $(date +%s%N)"; \
+            echo container_end: \$(date +%s%N)"; \
             echo run_end: $(date +%s%N)
         """,
         shell=True,
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     snapshotter = "cvmfs-snapshotter"
     results = []
 
-    num_runs = 2
+    num_runs = 5
 
     for entry in data:
         image, tasks = entry["image"], entry["tasks"]
