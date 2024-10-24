@@ -13,13 +13,10 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
-def log_error(message):
-    logging.error(message)
-
 def run_command(command, check=True):
     result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if check and result.returncode != 0:
-        log_error(f"Command failed: {command}\nError: {result.stderr.strip()}")
+        logging.error(f"Command failed: {command}\nError: {result.stderr.strip()}")
         sys.exit(1)
     return result.stdout.strip()
 
@@ -52,7 +49,7 @@ def cleanup(image):
 
     sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
     if not subprocess.run(["test", "-S", sock_path]).returncode == 0:
-        log_error(f"{sock_path} does not exist.")
+        logging.error(f"{sock_path} does not exist.")
         sys.exit(1)
 
 
