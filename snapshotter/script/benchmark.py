@@ -2,10 +2,12 @@
 
 import subprocess
 import re
+import os
 import json
 import sys
 import logging
 import statistics
+import shutil
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,10 +27,10 @@ def run_command(command, check=True):
 
 
 def clear_cache(path):
-    if subprocess.run(["test", "-d", path]).returncode == 0:
-        run_command(f"sudo rm -rf {path}")
-    run_command(f"sudo mkdir -p {path}")
-    run_command(f"sudo chmod 755 {path}")
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)
+    os.chmod(path, 0o755)
 
 
 def cleanup(image):
@@ -55,7 +57,7 @@ def cleanup(image):
     run_command("sudo cvmfs_config probe")
 
     sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-    if not subprocess.run([f"sudo test -S {sock_path}"]).returncode == 0:
+    if not os.path.exists(sock_path):
         logging.error(f"{sock_path} does not exist.")
         sys.exit(1)
 
