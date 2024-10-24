@@ -5,9 +5,9 @@ set -e
 snapshotter="cvmfs-snapshotter"
 image="docker.io/rootproject/root:6.32.02-ubuntu24.04"
 iterations=5
-output_file="benchmark_results.json"
+log_file="benchmark.log"
 
-echo "[]" > "$output_file"
+echo "" > "$log_file"  # Clear or create the log file
 
 tasks=(
     "/bin/bash"
@@ -18,19 +18,19 @@ tasks=(
 
 for task in "${tasks[@]}"; do
     for ((i = 1; i <= $iterations; i++)); do
-        echo "Running task: $task (Iteration $i)"
+        echo "Running task: $task (Iteration $i)" 
 
         benchmark_start=$(date +%s%N)
 
         pull_start=$(date +%s%N)
-        sudo nerdctl pull --snapshotter=$snapshotter $image
+        sudo nerdctl pull --snapshotter=$snapshotter $image 2>&1 | tee -a "$log_file"
         pull_end=$(date +%s%N)
 
         run_start=$(date +%s%N)
-        container_output=$(sudo nerdctl --debug-full run --snapshotter=$snapshotter $image /bin/bash -c "\
+        container_output=$(sudo nerdctl run --snapshotter=$snapshotter $image /bin/bash -c "\
             echo container_start: \$(date +%s%N); \
             $task; \
-            echo container_end: \$(date +%s%N)")
+            echo container_end: \$(date +%s%N)" 2>&1 | tee -a "$log_file")
 
         container_start=$(echo "$container_output" | grep "container_start" | awk '{print $2}')
         container_end=$(echo "$container_output" | grep "container_end" | awk '{print $2}')
@@ -52,24 +52,6 @@ for task in "${tasks[@]}"; do
         echo "total_time: $total_time seconds"
         echo
 
-        result_json=$(jq -n \
-            --arg task "$task" \
-            --argjson iteration "$i" \
-            --argjson pull_time "$pull_time" \
-            --argjson creation_time "$creation_time" \
-            --argjson execution_time "$execution_time" \
-            --argjson total_time "$total_time" \
-            '{
-                "task": $task,
-                "iteration": $iteration,
-                "pull_time": $pull_time,
-                "creation_time": $creation_time,
-                "execution_time": $execution_time,
-                "total_time": $total_time
-            }')
-
-        jq ". += [$result_json]" "$output_file" > tmp.$$.json && mv tmp.$$.json "$output_file"
-
-        bash clear.sh
+        bash clear.sh | tee -a "$log_file"
     done
 done
