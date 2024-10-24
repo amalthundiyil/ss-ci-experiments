@@ -67,11 +67,11 @@ jobs:
                   type = "snapshot"
                   address = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
           EOL
+
           sudo systemctl start cvmfs-snapshotter
           sudo systemctl restart containerd
 
-
-
+          CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
           if sudo test -S "$CVMFS_SOCK"; then
               echo "$CVMFS_SOCK exists."
           else
