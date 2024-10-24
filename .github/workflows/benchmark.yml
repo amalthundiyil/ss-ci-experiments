@@ -79,9 +79,7 @@ jobs:
               exit 1
           fi
 
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-
       - name: Run benchmark
         run: |
-          sudo python3 snapshotter/script/benchmark.py
+          cd snapshotter/script
+          python3 benchmark.py

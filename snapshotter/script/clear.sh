@@ -11,14 +11,10 @@ if [[ $? -ne 0 ]]; then
     log_error "Error pruning containers"
 fi
 
-image="docker.io/rootproject/root:6.32.02-ubuntu24.04"
-if sudo nerdctl images --format '{{.Repository}}:{{.Tag}}' | grep -q "$image"; then
-    sudo nerdctl rmi "$image" > /dev/null 2>&1
-    if [[ $? -ne 0 ]]; then
-        log_error "Error removing image $image"
-    fi
-else
-    echo "Image $image does not exist."
+image="$1"
+sudo nerdctl rmi "$image" > /dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    log_error "Error removing image $image"
 fi
 
 services=("containerd" "cvmfs-snapshotter")
@@ -85,6 +81,3 @@ if ! sudo test -S "$sock_path"; then
     log_error "$sock_path does not exist."
     exit 1
 fi
-
-echo "Cleanup complete!"
-

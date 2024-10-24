@@ -2,65 +2,16 @@
 
 import subprocess
 import re
-import os
 import json
 import sys
 import logging
 import statistics
-import shutil
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-
-
-def run_command(command, check=True):
-    result = subprocess.run(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
-    if check and result.returncode != 0:
-        logging.error(f"Command failed: {command}\nError: {result.stderr.strip()}")
-        sys.exit(1)
-    return result.stdout.strip()
-
-
-def clear_cache(path):
-    if os.path.isdir(path):
-        shutil.rmtree(path)
-    os.makedirs(path, exist_ok=True)
-    os.chmod(path, 0o755)
-
-
-def cleanup(image):
-    run_command("sudo nerdctl container prune -f")
-    images_output = run_command(
-        "sudo nerdctl images --format '{{.Repository}}:{{.Tag}}'"
-    )
-    if image in images_output:
-        run_command(f"sudo nerdctl rmi {image}")
-
-    services = ["containerd", "cvmfs-snapshotter"]
-    for service in services:
-        run_command(f"sudo systemctl stop {service}")
-
-    run_command("sudo umount /cvmfs/unpacked.cern.ch")
-    clear_cache("/var/lib/containerd")
-    clear_cache("/var/lib/containerd-cvmfs-grpc")
-    run_command("sudo cvmfs_config reload -c")
-
-    for service in services:
-        run_command(f"sudo systemctl start {service}")
-
-    run_command("sudo mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch")
-    run_command("sudo cvmfs_config probe")
-
-    sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-    if not os.path.exists(sock_path):
-        logging.error(f"{sock_path} does not exist.")
-        sys.exit(1)
-
 
 def run_benchmark(iteration, image, snapshotter, task):
     logging.info(
@@ -75,9 +26,9 @@ def run_benchmark(iteration, image, snapshotter, task):
             echo pull_end: $(date +%s%N); \
             echo run_start: $(date +%s%N); \
             sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
-            echo container_start: $(date +%s%N); \
+            echo container_start: \$(date +%s%N); \
             {task}; \
-            echo container_end: $(date +%s%N)"; \
+            echo container_end: \$(date +%s%N)"; \
             echo run_end: $(date +%s%N)
         """,
         shell=True,
@@ -99,17 +50,11 @@ def run_benchmark(iteration, image, snapshotter, task):
     container_end_match = re.search(r"container_end: ([\d]+)", output)
     run_end_match = re.search(r"run_end: ([\d]+)", output)
 
-    if not all(
-        [
-            benchmark_start_match,
-            pull_start_match,
-            pull_end_match,
-            container_start_match,
-            container_end_match,
-            run_end_match,
-        ]
-    ):
-        sys.exit("Error: One or more timestamps not found in the output.")
+    if not all([benchmark_start_match, pull_start_match, pull_end_match,
+                container_start_match, container_end_match, run_end_match]):
+        sys.exit(
+            "Error: One or more timestamps not found in the output."
+        )
 
     benchmark_start = int(benchmark_start_match.group(1))
     pull_start = int(pull_start_match.group(1))
@@ -125,6 +70,8 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     return pull_time, creation_time, execution_time, total_time
 
+def cleanup(image):
+    subprocess.run(["bash", "clear.sh", image], check=True)
 
 if __name__ == "__main__":
     data = [
@@ -141,6 +88,7 @@ if __name__ == "__main__":
 
     snapshotter = "cvmfs-snapshotter"
     results = []
+
     num_runs = 5
 
     for entry in data:
@@ -152,34 +100,30 @@ if __name__ == "__main__":
             total_times = []
 
             for i in range(num_runs):
-                cleanup(image)
-                pull_time, creation_time, execution_time, total_time = run_benchmark(
-                    i + 1, image, snapshotter, task
-                )
+                pull_time, creation_time, execution_time, total_time = run_benchmark(i + 1, image, snapshotter, task)
                 pull_times.append(pull_time)
                 creation_times.append(creation_time)
                 execution_times.append(execution_time)
                 total_times.append(total_time)
+                cleanup(image) 
 
-            results.append(
-                {
-                    "image": image,
-                    "snapshotter": snapshotter,
-                    "task": task,
-                    "pull_time_mean": statistics.mean(pull_times),
-                    "pull_time_median": statistics.median(pull_times),
-                    "pull_time_stddev": statistics.stdev(pull_times),
-                    "creation_time_mean": statistics.mean(creation_times),
-                    "creation_time_median": statistics.median(creation_times),
-                    "creation_time_stddev": statistics.stdev(creation_times),
-                    "execution_time_mean": statistics.mean(execution_times),
-                    "execution_time_median": statistics.median(execution_times),
-                    "execution_time_stddev": statistics.stdev(execution_times),
-                    "total_time_mean": statistics.mean(total_times),
-                    "total_time_median": statistics.median(total_times),
-                    "total_time_stddev": statistics.stdev(total_times),
-                }
-            )
+            results.append({
+                "image": image,
+                "snapshotter": snapshotter,
+                "task": task,
+                "pull_time_mean": statistics.mean(pull_times),
+                "pull_time_median": statistics.median(pull_times),
+                "pull_time_stddev": statistics.stdev(pull_times),
+                "creation_time_mean": statistics.mean(creation_times),
+                "creation_time_median": statistics.median(creation_times),
+                "creation_time_stddev": statistics.stdev(creation_times),
+                "execution_time_mean": statistics.mean(execution_times),
+                "execution_time_median": statistics.median(execution_times),
+                "execution_time_stddev": statistics.stdev(execution_times),
+                "total_time_mean": statistics.mean(total_times),
+                "total_time_median": statistics.median(total_times),
+                "total_time_stddev": statistics.stdev(total_times),
+            })
 
     logging.info("Benchmark results:")
     logging.info(json.dumps(results, indent=4))
