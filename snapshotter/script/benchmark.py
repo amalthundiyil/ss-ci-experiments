@@ -13,12 +13,16 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
+
 def run_command(command, check=True):
-    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(
+        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     if check and result.returncode != 0:
         logging.error(f"Command failed: {command}\nError: {result.stderr.strip()}")
         sys.exit(1)
     return result.stdout.strip()
+
 
 def clear_cache(path):
     if subprocess.run(["test", "-d", path]).returncode == 0:
@@ -26,9 +30,12 @@ def clear_cache(path):
     run_command(f"sudo mkdir -p {path}")
     run_command(f"sudo chmod 755 {path}")
 
+
 def cleanup(image):
     run_command("sudo nerdctl container prune -f")
-    images_output = run_command("sudo nerdctl images --format '{{.Repository}}:{{.Tag}}'")
+    images_output = run_command(
+        "sudo nerdctl images --format '{{.Repository}}:{{.Tag}}'"
+    )
     if image in images_output:
         run_command(f"sudo nerdctl rmi {image}")
 
@@ -54,7 +61,9 @@ def cleanup(image):
 
 
 def run_benchmark(iteration, image, snapshotter, task):
-    logging.info(f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}")
+    logging.info(
+        f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}"
+    )
 
     result = subprocess.run(
         f"""
@@ -88,8 +97,16 @@ def run_benchmark(iteration, image, snapshotter, task):
     container_end_match = re.search(r"container_end: ([\d]+)", output)
     run_end_match = re.search(r"run_end: ([\d]+)", output)
 
-    if not all([benchmark_start_match, pull_start_match, pull_end_match,
-                container_start_match, container_end_match, run_end_match]):
+    if not all(
+        [
+            benchmark_start_match,
+            pull_start_match,
+            pull_end_match,
+            container_start_match,
+            container_end_match,
+            run_end_match,
+        ]
+    ):
         sys.exit("Error: One or more timestamps not found in the output.")
 
     benchmark_start = int(benchmark_start_match.group(1))
@@ -105,6 +122,7 @@ def run_benchmark(iteration, image, snapshotter, task):
     total_time = (run_end - benchmark_start) / 1e9
 
     return pull_time, creation_time, execution_time, total_time
+
 
 if __name__ == "__main__":
     data = [
@@ -133,29 +151,33 @@ if __name__ == "__main__":
 
             for i in range(num_runs):
                 cleanup(image)
-                pull_time, creation_time, execution_time, total_time = run_benchmark(i + 1, image, snapshotter, task)
+                pull_time, creation_time, execution_time, total_time = run_benchmark(
+                    i + 1, image, snapshotter, task
+                )
                 pull_times.append(pull_time)
                 creation_times.append(creation_time)
                 execution_times.append(execution_time)
                 total_times.append(total_time)
 
-            results.append({
-                "image": image,
-                "snapshotter": snapshotter,
-                "task": task,
-                "pull_time_mean": statistics.mean(pull_times),
-                "pull_time_median": statistics.median(pull_times),
-                "pull_time_stddev": statistics.stdev(pull_times),
-                "creation_time_mean": statistics.mean(creation_times),
-                "creation_time_median": statistics.median(creation_times),
-                "creation_time_stddev": statistics.stdev(creation_times),
-                "execution_time_mean": statistics.mean(execution_times),
-                "execution_time_median": statistics.median(execution_times),
-                "execution_time_stddev": statistics.stdev(execution_times),
-                "total_time_mean": statistics.mean(total_times),
-                "total_time_median": statistics.median(total_times),
-                "total_time_stddev": statistics.stdev(total_times),
-            })
+            results.append(
+                {
+                    "image": image,
+                    "snapshotter": snapshotter,
+                    "task": task,
+                    "pull_time_mean": statistics.mean(pull_times),
+                    "pull_time_median": statistics.median(pull_times),
+                    "pull_time_stddev": statistics.stdev(pull_times),
+                    "creation_time_mean": statistics.mean(creation_times),
+                    "creation_time_median": statistics.median(creation_times),
+                    "creation_time_stddev": statistics.stdev(creation_times),
+                    "execution_time_mean": statistics.mean(execution_times),
+                    "execution_time_median": statistics.median(execution_times),
+                    "execution_time_stddev": statistics.stdev(execution_times),
+                    "total_time_mean": statistics.mean(total_times),
+                    "total_time_median": statistics.median(total_times),
+                    "total_time_stddev": statistics.stdev(total_times),
+                }
+            )
 
     logging.info("Benchmark results:")
     logging.info(json.dumps(results, indent=4))
