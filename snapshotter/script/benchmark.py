@@ -13,6 +13,27 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
+def flush_cache(image):
+    subprocess.run(f"""
+        sudo nerdctl container prune -f && \
+        sudo nerdctl rmi {image} && \
+        sudo systemctl stop containerd && \
+        sudo systemctl stop cvmfs-snapshotter && \
+        sudo umount /cvmfs/unpacked.cern.ch && \
+        sudo rm -rf /var/lib/containerd && \
+        sudo mkdir -p /var/lib/containerd && \
+        sudo chmod 755 /var/lib/containerd && \
+        sudo rm -rf /var/lib/containerd-cvmfs-grpc && \
+        sudo mkdir -p /var/lib/containerd-cvmfs-grpc && \
+        sudo chmod 755 /var/lib/containerd-cvmfs-grpc && \
+        sudo cvmfs_config reload -c && \
+        sudo systemctl start containerd && \
+        sudo systemctl start cvmfs-snapshotter && \
+        sudo mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch && \
+        sudo cvmfs_config probe && \
+        sudo test -S /run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock
+    """, shell=True, check=True)
+
 def run_benchmark(iteration, image, snapshotter, task):
     logging.info(
         f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}"
