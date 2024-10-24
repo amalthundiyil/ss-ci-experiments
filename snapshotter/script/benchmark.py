@@ -71,7 +71,7 @@ def run_benchmark(iteration, image, snapshotter, task):
     return pull_time, creation_time, execution_time, total_time
 
 def cleanup(image):
-    subprocess.run(["bash", "clear.sh", image], check=True)
+    subprocess.run(["bash", "flush_cache.sh", image], check=True)
 
 if __name__ == "__main__":
     data = [
