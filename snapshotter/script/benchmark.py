@@ -21,7 +21,7 @@ def run_benchmark(iteration, image, snapshotter, task):
         f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}"
     )
 
-    # TODO: modify to use pull, create and run, and have all the times in python
+    # TODO: modify to use nerdctl pull, create and run, and have all the times in python
 
     result = subprocess.run(
         f"""
