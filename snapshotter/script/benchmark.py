@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 import subprocess
-import time
 import re
 import json
 import sys
-import os
 import logging
 import statistics
 
@@ -15,13 +13,51 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
+def log_error(message):
+    logging.error(message)
+
+def run_command(command, check=True):
+    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if check and result.returncode != 0:
+        log_error(f"Command failed: {command}\nError: {result.stderr.strip()}")
+        sys.exit(1)
+    return result.stdout.strip()
+
+def clear_cache(path):
+    if subprocess.run(["test", "-d", path]).returncode == 0:
+        run_command(f"sudo rm -rf {path}")
+    run_command(f"sudo mkdir -p {path}")
+    run_command(f"sudo chmod 755 {path}")
+
+def cleanup(image):
+    run_command("sudo nerdctl container prune -f")
+    images_output = run_command("sudo nerdctl images --format '{{.Repository}}:{{.Tag}}'")
+    if image in images_output:
+        run_command(f"sudo nerdctl rmi {image}")
+
+    services = ["containerd", "cvmfs-snapshotter"]
+    for service in services:
+        run_command(f"sudo systemctl stop {service}")
+
+    run_command("sudo umount /cvmfs/unpacked.cern.ch")
+    clear_cache("/var/lib/containerd")
+    clear_cache("/var/lib/containerd-cvmfs-grpc")
+    run_command("sudo cvmfs_config reload -c")
+
+    for service in services:
+        run_command(f"sudo systemctl start {service}")
+
+    run_command("sudo mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch")
+    run_command("sudo cvmfs_config probe")
+
+    sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
+    if not subprocess.run(["test", "-S", sock_path]).returncode == 0:
+        log_error(f"{sock_path} does not exist.")
+        sys.exit(1)
+
 
 def run_benchmark(iteration, image, snapshotter, task):
-    logging.info(
-        f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}"
-    )
-
-    # TODO: modify to use nerdctl pull, create and run, and have all the times in python
+    logging.info(f"Benchmark run #{iteration} - snapshotter: {snapshotter}, image: {image}, task: {task}")
 
     result = subprocess.run(
         f"""
@@ -30,10 +66,10 @@ def run_benchmark(iteration, image, snapshotter, task):
             sudo nerdctl pull --snapshotter={snapshotter} {image}; \
             echo pull_end: $(date +%s%N); \
             echo run_start: $(date +%s%N); \
-            sudo nerdctl --debug-full run --snapshotter={snapshotter} {image} /bin/bash -c "\
-            echo container_start: '$(date +%s%N)'; \
+            sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
+            echo container_start: \$(date +%s%N); \
             {task}; \
-            echo container_end: '$(date +%s%N)'"; \
+            echo container_end: \$(date +%s%N)"; \
             echo run_end: $(date +%s%N)
         """,
         shell=True,
@@ -47,7 +83,7 @@ def run_benchmark(iteration, image, snapshotter, task):
         logging.error(f"Run stderr: {result.stderr}")
 
     output = result.stdout
-    print(output)
+
     benchmark_start_match = re.search(r"benchmark_start: ([\d]+)", output)
     pull_start_match = re.search(r"pull_start: ([\d]+)", output)
     pull_end_match = re.search(r"pull_end: ([\d]+)", output)
@@ -57,9 +93,7 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     if not all([benchmark_start_match, pull_start_match, pull_end_match,
                 container_start_match, container_end_match, run_end_match]):
-        sys.exit(
-            "Error: One or more timestamps not found in the output."
-        )
+        sys.exit("Error: One or more timestamps not found in the output.")
 
     benchmark_start = int(benchmark_start_match.group(1))
     pull_start = int(pull_start_match.group(1))
@@ -75,166 +109,22 @@ def run_benchmark(iteration, image, snapshotter, task):
 
     return pull_time, creation_time, execution_time, total_time
 
-def perf_regression(old_results, new_results, threshold=0.05):
-    for key in old_results:
-        old_time = old_results[key]
-        new_time = new_results[key]
-        percentage_diff = (new_time - old_time) / old_time
-        logging.info(
-            f"{key}: old={old_time}, new={new_time}, diff={percentage_diff*100:.2f}%"
-        )
-        if percentage_diff > threshold:
-            logging.warning(f"Performance regression detected in {key}")
-            return True
-    return False
-
-
-def cleanup(image):
-    result = subprocess.run(
-        ["sudo", "nerdctl", "container", "prune", "-f"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if result.stderr:
-        logging.error(f"Error pruning containers: {result.stderr}")
-
-    result = subprocess.run(
-        ["sudo", "nerdctl", "rmi", image],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if result.stderr:
-        logging.error(f"Error removing image {image}: {result.stderr}")
-
-    services = ["containerd", "cvmfs-snapshotter"]
-
-    for service in services:
-        result = subprocess.run(
-            ["sudo", "systemctl", "stop", service],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.stderr:
-            logging.error(f"Error stopping {service}: {result.stderr}")
-
-    result = subprocess.run(
-        ["sudo", "umount", "/cvmfs/unpacked.cern.ch"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if result.stderr:
-        logging.error(f"Error unmounting /cvmfs/unpacked.cern.ch: {result.stderr}")
-    if logging.getLogger().level == logging.ERROR:
-        logging.debug(f"umount stdout: {result.stdout}")
-
-    def clear_cache(path):
-        if os.path.exists(path):
-            result = subprocess.run(
-                ["sudo", "rm", "-rf", path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            if result.stderr:
-                logging.error(f"Error removing {path}: {result.stderr}")
-
-        result = subprocess.run(
-            ["sudo", "mkdir", "-p", path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.stderr:
-            logging.error(f"Error creating {path}: {result.stderr}")
-        result = subprocess.run(
-            ["sudo", "chmod", "755", path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.stderr:
-            logging.error(f"Error setting permissions on {path}: {result.stderr}")
-
-    clear_cache("/var/lib/containerd")
-    clear_cache("/var/lib/containerd-cvmfs-grpc")
-
-    result = subprocess.run(
-        "sudo cvmfs_config reload -c",
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if result.stderr:
-        logging.error(f"Error reloading cvmfs_config: {result.stderr}")
-
-    for service in services:
-        result = subprocess.run(
-            ["sudo", "systemctl", "start", service],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.stderr:
-            logging.error(f"Error starting {service}: {result.stderr}")
-
-    result = subprocess.run(
-        [
-            "sudo",
-            "mount",
-            "-t",
-            "cvmfs",
-            "unpacked.cern.ch",
-            "/cvmfs/unpacked.cern.ch",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if logging.getLogger().level == logging.ERROR:
-        logging.error(f"mount stderr: {result.stderr}")
-        logging.debug(f"mount stdout: {result.stdout}")
-
-    result = subprocess.run(
-        "sudo cvmfs_config probe",
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if result.stderr:
-        logging.error(f"Error probing cvmfs_config: {result.stderr}")
-
-    
-    try:
-        sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-        subprocess.run(["sudo", "test", "-S", sock_path], check=True)
-    except subprocess.CalledProcessError:
-        raise AssertionError(f"{sock_path} does not exist.")
-
-
 if __name__ == "__main__":
     data = [
         {
             "image": "docker.io/rootproject/root:6.32.02-ubuntu24.04",
             "tasks": [
-                # "/bin/bash",
-                # r"python -c 'print(\"done\")'",
+                "/bin/bash",
+                r"python -c 'print(\"done\")'",
                 r"python -c 'import ROOT; print(\"done\")'",
-                # "python /opt/root/tutorials/pyroot/fillrandom.py",
+                "python /opt/root/tutorials/pyroot/fillrandom.py",
             ],
         }
     ]
 
     snapshotter = "cvmfs-snapshotter"
     results = []
-
-    num_runs = 2  # Number of times to run each task
-    # num_runs = 5  # Number of times to run each task
+    num_runs = 5
 
     for entry in data:
         image, tasks = entry["image"], entry["tasks"]
@@ -245,12 +135,12 @@ if __name__ == "__main__":
             total_times = []
 
             for i in range(num_runs):
+                cleanup(image)
                 pull_time, creation_time, execution_time, total_time = run_benchmark(i + 1, image, snapshotter, task)
                 pull_times.append(pull_time)
                 creation_times.append(creation_time)
                 execution_times.append(execution_time)
                 total_times.append(total_time)
-                cleanup(image)
 
             results.append({
                 "image": image,

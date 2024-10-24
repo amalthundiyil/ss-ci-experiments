@@ -53,6 +53,7 @@ for task in "${tasks[@]}"; do
         echo
 
         result_json=$(jq -n \
+            --arg image "$image" \
             --arg task "$task" \
             --argjson iteration "$i" \
             --argjson pull_time "$pull_time" \
@@ -60,6 +61,7 @@ for task in "${tasks[@]}"; do
             --argjson execution_time "$execution_time" \
             --argjson total_time "$total_time" \
             '{
+                "image": $image,
                 "task": $task,
                 "iteration": $iteration,
                 "pull_time": $pull_time,

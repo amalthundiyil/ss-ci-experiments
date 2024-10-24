@@ -12,9 +12,13 @@ if [[ $? -ne 0 ]]; then
 fi
 
 image="docker.io/rootproject/root:6.32.02-ubuntu24.04"
-sudo nerdctl rmi "$image" > /dev/null 2>&1
-if [[ $? -ne 0 ]]; then
-    log_error "Error removing image $image"
+if sudo nerdctl images --format '{{.Repository}}:{{.Tag}}' | grep -q "$image"; then
+    sudo nerdctl rmi "$image" > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        log_error "Error removing image $image"
+    fi
+else
+    echo "Image $image does not exist."
 fi
 
 services=("containerd" "cvmfs-snapshotter")
