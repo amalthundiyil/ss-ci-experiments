@@ -55,7 +55,7 @@ def cleanup(image):
     run_command("sudo cvmfs_config probe")
 
     sock_path = "/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-    if not subprocess.run(["test", "-S", sock_path]).returncode == 0:
+    if not subprocess.run([f"sudo test -S {sock_path}"]).returncode == 0:
         logging.error(f"{sock_path} does not exist.")
         sys.exit(1)
 
