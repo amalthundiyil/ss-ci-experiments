@@ -81,4 +81,4 @@ jobs:
 
       - name: Run benchmark
         run: |
-          bash snapshotter/script/benchmark.py
+          python3 snapshotter/script/benchmark.py
