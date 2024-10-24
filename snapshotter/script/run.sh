@@ -1,8 +1,13 @@
 #!/bin/bash
 
+set -e
+
 snapshotter="cvmfs-snapshotter"
 image="docker.io/rootproject/root:6.32.02-ubuntu24.04"
 iterations=5
+output_file="benchmark_results.json"
+
+echo "[]" > "$output_file"
 
 tasks=(
     "/bin/bash"
@@ -46,6 +51,25 @@ for task in "${tasks[@]}"; do
         echo "execution_time: $execution_time seconds"
         echo "total_time: $total_time seconds"
         echo
+
+        result_json=$(jq -n \
+            --arg task "$task" \
+            --argjson iteration "$i" \
+            --argjson pull_time "$pull_time" \
+            --argjson creation_time "$creation_time" \
+            --argjson execution_time "$execution_time" \
+            --argjson total_time "$total_time" \
+            '{
+                "task": $task,
+                "iteration": $iteration,
+                "pull_time": $pull_time,
+                "creation_time": $creation_time,
+                "execution_time": $execution_time,
+                "total_time": $total_time
+            }')
+
+        jq ". += [$result_json]" "$output_file" > tmp.$$.json && mv tmp.$$.json "$output_file"
+
+        bash clear.sh
     done
 done
-

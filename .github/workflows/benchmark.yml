@@ -69,8 +69,7 @@ jobs:
           sudo mkdir -p /cvmfs/unpacked.cern.ch
           sudo mount -t cvmfs unpacked.cern.ch /cvmfs/unpacked.cern.ch
 
-          CVMFS_SOCK="/run/containerd-cvmfs-grpc/containerd-cvmfs-grpc.sock"
-          if sudo [ -S "$CVMFS_SOCK" ]; then
+          if sudo test -S "$CVMFS_SOCK"; then
               echo "$CVMFS_SOCK exists."
           else
               echo "$CVMFS_SOCK does not exist."
@@ -81,4 +80,6 @@ jobs:
       #   uses: mxschmitt/action-tmate@v3
 
       - name: Run benchmark
-        run: bash snapshotter/script/clear.sh && bash snapshotter/script/run.sh && bash snapshotter/script/clear.sh
+        run: |
+          cd snapshotter/script
+          bash run.sh
