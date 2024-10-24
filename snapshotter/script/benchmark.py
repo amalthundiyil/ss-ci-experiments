@@ -26,9 +26,9 @@ def run_benchmark(iteration, image, snapshotter, task):
             echo pull_end: $(date +%s%N); \
             echo run_start: $(date +%s%N); \
             sudo nerdctl run --snapshotter={snapshotter} {image} /bin/bash -c "\
-            echo container_start: $(date +%s%N); \
+            echo container_start: \$(date +%s%N); \
             {task}; \
-            echo container_end: $(date +%s%N)"; \
+            echo container_end: \$(date +%s%N)"; \
             echo run_end: $(date +%s%N)
         """,
         shell=True,
@@ -71,7 +71,7 @@ def run_benchmark(iteration, image, snapshotter, task):
     return pull_time, creation_time, execution_time, total_time
 
 def cleanup(image):
-    subprocess.run(["bash", "flush_cache.sh", image], check=True)
+    subprocess.run(["bash", "clear.sh", image], check=True)
 
 if __name__ == "__main__":
     data = [
